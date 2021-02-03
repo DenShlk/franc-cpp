@@ -8,6 +8,10 @@
 #include <cstdio>
 #include <iostream>
 
+#include <chrono>
+#include <ctime>
+#include <ratio>
+
 using namespace std;
 
 class LanguageProcessor{
@@ -30,17 +34,20 @@ private:
 
     void readData();
 
-    Script getTopScript(wstring value);
+    void getTopScript(wstring &value, Script &result);
 
-    float getOccurrence(wstring value, wregex pattern);
+    float getOccurrence(wstring &value, wregex &pattern);
 
-    wstring LanguageProcessor::getTopLanguage(wstring value, Script script);
+    wstring getTopLanguage(wstring &value, Script &script);
 
-    vector<pair<wstring, int>> LanguageProcessor::getTrigramsCounts(wstring value);
+    void getTrigramsCounts(wstring &value, vector<pair<wstring, int>> &result);
 
-    int LanguageProcessor::getDistance(vector<pair<wstring, int>> trigrams, map<wstring, int> model);
+    int getDistance(vector<pair<wstring, int>> &trigrams, map<wstring, int> &model);
 
 public:
+
+    double getTopScriptTime = 0;
+    double getTopLanguageTime = 0;
 
     /* Maximum sample length. */
     const int MAX_LENGTH = 2048;
@@ -50,5 +57,5 @@ public:
 
     LanguageProcessor();
 
-    wstring Detect(wstring value);
+    wstring Detect(wstring &value);
 };

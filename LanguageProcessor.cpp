@@ -11,7 +11,14 @@
 #include <codecvt>
 #include <fstream>
 
+#include <chrono>
+#include <ctime>
+#include <ratio>
+
 using namespace std;
+
+chrono::high_resolution_clock::time_point t_start;
+chrono::high_resolution_clock::time_point t_end;
 
 /**
  * Gets list of scripts from data file. (Script is a family of  languages).
@@ -57,6 +64,9 @@ void LanguageProcessor::readData() {
 
             for (int weight = 0; weight*3 < lang_trigrams.size(); ++weight) {
                 wstring tri = lang_trigrams.substr(weight * 3, 3);
+                if(!weight && tri[0] == '_'){
+                    tri = L" " + tri.substr(1,2);
+                }
                 scripts.back()
                         .trigrams[j][tri] = weight;
             }
@@ -76,7 +86,7 @@ LanguageProcessor::LanguageProcessor() {
  * @param {Object} options - Configuration.
  * @return {string} The most probable language.
  */
-wstring LanguageProcessor::Detect(wstring value) {
+wstring LanguageProcessor::Detect(wstring &value) {
     if (value.size() > MAX_LENGTH) {
         value.resize(MAX_LENGTH);
     }
@@ -85,14 +95,28 @@ wstring LanguageProcessor::Detect(wstring value) {
         return L"";
     }
 
-    Script script = getTopScript(value);
+    Script script(L"??", L"");
+
+    t_start = chrono::high_resolution_clock::now();
+    getTopScript(value, script);
+    t_end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, std::milli> elapsed = t_end - t_start;
+    getTopScriptTime += elapsed.count();
 
     if(script.lang_names.empty()){
         //mono-script (script===language)
         return script.name;
     }
 
-    return getTopLanguage(value, script);
+    t_start = chrono::high_resolution_clock::now();
+    auto result = getTopLanguage(value, script);
+    t_end = chrono::high_resolution_clock::now();
+
+    elapsed = t_end - t_start;
+    getTopLanguageTime += elapsed.count();
+
+    return result;
 }
 
 
@@ -106,22 +130,21 @@ wstring LanguageProcessor::Detect(wstring value) {
 * @return {Array} Top script and its
 *   occurrence percentage.
 */
-LanguageProcessor::Script LanguageProcessor::getTopScript(wstring value){
+void LanguageProcessor::getTopScript(wstring &value, Script &result){
     float topRatio = -1;
-    Script topScript(L"??", L"");
 
     for(Script script : scripts){
         float ratio = getOccurrence(value, script.regex_exp);
 
-        wcout << script.name << L" " << ratio << endl;
+        //wcout << script.name << L" " << ratio << endl;
 
         if(ratio > topRatio){
-            topScript = script;
+            result = script;
             topRatio = ratio;
+
+            if(ratio > 0.4f) return;
         }
     }
-
-    return topScript;
 }
 
 /**
@@ -131,7 +154,7 @@ LanguageProcessor::Script LanguageProcessor::getTopScript(wstring value){
  * @param {RegExp} expression - Code-point expression.
  * @return {number} Float between 0 and 1.
  */
-float LanguageProcessor::getOccurrence(wstring value, wregex pattern){
+float LanguageProcessor::getOccurrence(wstring &value, wregex &pattern){
 
     std::ptrdiff_t const match_count(std::distance(
             wsregex_iterator(value.begin(), value.end(), pattern),
@@ -148,16 +171,17 @@ float LanguageProcessor::getOccurrence(wstring value, wregex pattern){
  * @param script
  * @return
  */
-wstring LanguageProcessor::getTopLanguage(wstring value, Script script){
+wstring LanguageProcessor::getTopLanguage(wstring &value, Script &script){
     wstring topLanguage = L"??";
     int topDistance = INT32_MAX;
 
-    auto trigramsCounts = getTrigramsCounts(value);
+    vector<pair<wstring, int>> trigramsCounts;
+    getTrigramsCounts(value, trigramsCounts);
 
     for (int i = 0; i < script.lang_names.size(); ++i) {
         int distance = getDistance(trigramsCounts, script.trigrams[i]);
 
-        wcout << script.lang_names[i] << L" " << distance << endl;
+        //wcout << script.lang_names[i] << L" " << distance << endl;
 
         if(distance < topDistance){
             topDistance = distance;
@@ -173,17 +197,16 @@ wstring LanguageProcessor::getTopLanguage(wstring value, Script script){
  * @param value
  * @return
  */
-vector<pair<wstring, int>> LanguageProcessor::getTrigramsCounts(wstring value){
+void LanguageProcessor::getTrigramsCounts(wstring &value, vector<pair<wstring, int>> &result){
     map<wstring, int> count;
     for (int i = 0; i < value.length() - 2; ++i) {
         count[value.substr(i, 3)]++;
     }
-    vector<pair<wstring, int>> result;
+
     for(auto p : count){
+        //wcout << p.first << " " << p.second << endl;
         result.push_back({p.first, p.second});
     }
-
-    return result;
 }
 
 /**
@@ -196,11 +219,13 @@ vector<pair<wstring, int>> LanguageProcessor::getTrigramsCounts(wstring value){
  *   containing weighted trigrams.
  * @return {number} - The distance between the two.
  */
-int LanguageProcessor::getDistance(vector<pair<wstring, int>> trigramsCounts, map<wstring, int> model){
+int LanguageProcessor::getDistance(vector<pair<wstring, int>> &trigramsCounts, map<wstring, int> &model){
     int distance = 0;
 
     for (int i = 0; i < trigramsCounts.size(); ++i) {
         auto trigram = trigramsCounts[i];
+
+        //wcout << trigrams.first << " " << model[trigram.first] << endl;
 
         int difference;
         if(model.count(trigram.first)){

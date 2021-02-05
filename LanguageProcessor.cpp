@@ -101,7 +101,7 @@ wstring LanguageProcessor::Detect(wstring &value) {
     getTopScript(value, script);
     t_end = chrono::high_resolution_clock::now();
 
-    chrono::duration<double, std::milli> elapsed = t_end - t_start;
+    chrono::duration<double, std::nano> elapsed = t_end - t_start;
     getTopScriptTime += elapsed.count();
 
     if(script.lang_names.empty()){
@@ -133,7 +133,7 @@ wstring LanguageProcessor::Detect(wstring &value) {
 void LanguageProcessor::getTopScript(wstring &value, Script &result){
     float topRatio = -1;
 
-    for(Script script : scripts){
+    for(Script &script : scripts){
         float ratio = getOccurrence(value, script.regex_exp);
 
         //wcout << script.name << L" " << ratio << endl;
@@ -155,12 +155,18 @@ void LanguageProcessor::getTopScript(wstring &value, Script &result){
  * @return {number} Float between 0 and 1.
  */
 float LanguageProcessor::getOccurrence(wstring &value, wregex &pattern){
+    int count = 0;
 
-    std::ptrdiff_t const match_count(std::distance(
-            wsregex_iterator(value.begin(), value.end(), pattern),
-            wsregex_iterator()));
+    wsregex_iterator it(value.begin(), value.end(), pattern);
+    wsregex_iterator it_end;
+    for(; it!=it_end; it++){
+        count += it->length();
+    }
+    //std::ptrdiff_t const match_count(std::distance(
+     //       wsregex_iterator(value.begin(), value.end(), pattern),
+      //      wsregex_iterator()));
 
-    int count = match_count;
+    //int count = match_count;
 
     return 1.f * count / value.size();
 }

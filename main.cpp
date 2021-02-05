@@ -30,20 +30,23 @@ int main() {
 
     LanguageProcessor processor;
 
+    wcout << processor.Detect(input);
 
     chrono::high_resolution_clock::time_point t_start = chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < 100; ++i) {
+    int cycles_count = 1000;
+
+    for (int i = 0; i < cycles_count; ++i) {
         processor.Detect(input);
     }
 
     chrono::high_resolution_clock::time_point t_end = chrono::high_resolution_clock::now();
 
-    chrono::duration<double, std::milli> elapsed = t_end - t_start;
+    chrono::duration<double, std::nano> elapsed = t_end - t_start;
 
-    wcout << L"100 cycles, time elapsed: " << elapsed.count() << L"ms" << endl;
-    wcout << L"getTopScript() time: " << processor.getTopScriptTime  << L"ms" << endl;
-    wcout << L"getTopLanguage() time: " << processor.getTopLanguageTime  << L"ms" << endl;
+    wcout << cycles_count << L" cycles, time elapsed: " << elapsed.count()/1e6 << L"ms" << endl;
+    wcout << L"getTopScript() time: " << processor.getTopScriptTime /cycles_count/input.length() << L"ns/char" << endl;
+    wcout << L"getTopLanguage() time: " << processor.getTopLanguageTime /cycles_count/input.length() << L"ns/char" << endl;
 
     return 0;
 }
